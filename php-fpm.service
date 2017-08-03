@@ -1,0 +1,13 @@
+[Unit]  
+Description=nginx  
+After=network.target  
+   
+[Service]  
+Type=forking  
+ExecStart=/usr/sbin/php-fpm
+ExecReload=killall php-fpm;/usr/sbin/php-fpm;
+ExecStop=killall php-fpm
+PrivateTmp=true  
+   
+[Install]  
+WantedBy=multi-user.target 
