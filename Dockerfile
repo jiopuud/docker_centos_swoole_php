@@ -2,17 +2,29 @@
 FROM centos
 MAINTAINER Han Zhang 1047249570@qq.com
 # 构建swoole环境，在这里安装了php,swoole,composer,redis
+ADD temp /home/temp
+WORKDIR /home/temp/
 RUN mkdir -p /var/log/supervisor \
-	&& mkdir /data && mkdir -p /data/nginx/log && mkdir -p /data/nginx/run
-VOLUME [/data]
-RUN useradd nginx && cd /home && mkdir temp && cd temp 
+	&& mkdir /data && mkdir -p /data/nginx/log && mkdir -p /data/nginx/run && mkdir /data/www && chmod 755 /data/www
+RUN useradd nginx
 RUN yum group install Development Tools -y
 RUN rpm -ivh http://mirrors.sohu.com/fedora-epel/7Server/x86_64/e/epel-release-7-10.noarch.rpm 
 RUN yum install libxml2 libxml2-devel openssl openssl-devel bzip2 bzip2-devel libcurl libcurl-devel libjpeg libjpeg-devel libpng libpng-devel freetype freetype-devel gmp gmp-devel libmcrypt libmcrypt-devel readline readline-devel libxslt libxslt-devel wget supervisor redis psmisc -y 
-WORKDIR /home/temp/
+
+RUN wget https://nginx.org/download/nginx-1.12.1.tar.gz --no-check-certificate \
+	&& mkdir nginx && tar zxvf nginx-1.12.1.tar.gz -C ./nginx --strip-components 1 \
+	&& cd nginx \
+	&& ./configure --error-log-path=/data/nginx/log/error.log --pid-path=/data/nginx/run/nginx.pid --lock-path=/data/nginx/run/nginx.lock --user=nginx --group=nginx --with-threads --with-file-aio --with-http_ssl_module --with-http_gzip_static_module --with-http_gunzip_module --with-http_secure_link_module --with-http_degradation_module --with-http_random_index_module --with-ipv6  --with-http_realip_module --with-http_stub_status_module \
+	&& make && make install && ln -s /usr/local/nginx/sbin/nginx /usr/sbin/nginx
+RUN rm -rf rm -rf /usr/local/nginx/conf/nginx.conf
+ADD nginx.conf /usr/local/nginx/conf/nginx.conf
+ADD cert /usr/local/nginx/cert
+RUN chmod -R 755 /usr/local/nginx/cert
+
 # 添加composer
 ADD composer /usr/sbin/composer
 RUN chmod 777 /usr/sbin/composer
+RUN composer config -g repo.packagist composer https://packagist.phpcomposer.com
 #编译安装php7
 RUN wget -O php7.tar.gz http://cn2.php.net/get/php-7.1.1.tar.gz/from/this/mirror \
 	&& mkdir php7 && tar zxvf php7.tar.gz  -C ./php7 --strip-components 1 \
@@ -39,18 +51,20 @@ RUN tar -xzvf v0.13.3.tar.gz \
 	&& make -j && make install && echo '/usr/local/lib' > /etc/ld.so.conf.d/local.conf && ldconfig 
 RUN cd swoole-src-1.9.17 \
 	&& phpize && ./configure --enable-async-redis --enable-openssl && make -j \
-	&& make install
-RUN pecl install inotify \
-	&& pecl install redis \
-	&& echo extension=redis.so>>/usr/local/php/etc/php.ini \
-	&& echo extension=inotify.so>>/usr/local/php/etc/php.ini \
-	&& echo extension=swoole.so>>/usr/local/php/etc/php.ini 
+	&& make install && echo extension=swoole.so>>/usr/local/php/etc/php.ini
 
-RUN wget https://nginx.org/download/nginx-1.12.1.tar.gz --no-check-certificate \
-	&& mkdir nginx && tar zxvf nginx-1.12.1.tar.gz -C ./nginx --strip-components 1 \
-	&& cd nginx \
-	&& ./configure --error-log-path=/data/nginx/log/error.log --pid-path=/data/nginx/run/nginx.pid --lock-path=/data/nginx/run/nginx.lock --user=nginx --group=nginx --with-threads --with-file-aio --with-http_ssl_module --with-http_gzip_static_module --with-http_gunzip_module --with-http_secure_link_module --with-http_degradation_module --with-http_random_index_module --with-ipv6  --with-http_realip_module --with-http_stub_status_module \
-	&& make && make install && ln -s /usr/local/nginx/sbin/nginx /usr/sbin/nginx
+RUN mkdir php-inotify \ 
+	&& tar zxvf inotify-2.0.0.tgz  -C ./php-inotify --strip-components 1 \
+	&& cd php-inotify \
+	&& phpize && ./configure && make && make install \
+	&& echo extension=inotify.so>>/usr/local/php/etc/php.ini
+	
+RUN mkdir php-redis \ 
+	&& tar zxvf redis-3.1.3.tgz  -C ./php-redis --strip-components 1 \
+	&& cd php-redis \
+	&& phpize && ./configure && make && make install \
+	&& echo extension=redis.so>>/usr/local/php/etc/php.ini
+
 ADD nginx.service /lib/systemd/system/nginx.service
 ADD php-fpm.service /lib/systemd/system/php-fpm.service
 ADD supervisord.service /lib/systemd/system/supervisord.service
@@ -71,5 +85,5 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
    
 # 启动sshd服务并且暴露22端口  
 RUN mkdir /var/run/sshd  
-EXPOSE 22  
+EXPOSE 22 
 CMD ["/usr/sbin/init"] 
