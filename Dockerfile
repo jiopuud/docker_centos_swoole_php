@@ -10,6 +10,7 @@ RUN useradd nginx
 RUN yum group install Development Tools -y
 RUN rpm -ivh http://mirrors.sohu.com/fedora-epel/7Server/x86_64/e/epel-release-7-10.noarch.rpm 
 RUN yum install libxml2 libxml2-devel openssl openssl-devel bzip2 bzip2-devel libcurl libcurl-devel libjpeg libjpeg-devel libpng libpng-devel freetype freetype-devel gmp gmp-devel libmcrypt libmcrypt-devel readline readline-devel libxslt libxslt-devel wget supervisor redis psmisc -y 
+RUN cp -rf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime   
 
 RUN wget https://nginx.org/download/nginx-1.12.1.tar.gz --no-check-certificate \
 	&& mkdir nginx && tar zxvf nginx-1.12.1.tar.gz -C ./nginx --strip-components 1 \
@@ -24,7 +25,7 @@ RUN chmod -R 755 /usr/local/nginx/cert
 # 添加composer
 ADD composer /usr/sbin/composer
 RUN chmod 777 /usr/sbin/composer
-RUN composer config -g repo.packagist composer https://packagist.phpcomposer.com
+
 #编译安装php7
 RUN wget -O php7.tar.gz http://cn2.php.net/get/php-7.1.1.tar.gz/from/this/mirror \
 	&& mkdir php7 && tar zxvf php7.tar.gz  -C ./php7 --strip-components 1 \
@@ -63,7 +64,8 @@ RUN mkdir php-redis \
 	&& tar zxvf redis-3.1.3.tgz  -C ./php-redis --strip-components 1 \
 	&& cd php-redis \
 	&& phpize && ./configure && make && make install \
-	&& echo extension=redis.so>>/usr/local/php/etc/php.ini
+	&& echo extension=redis.so>>/usr/local/php/etc/php.ini \
+	&& /usr/sbin/composer config -g repo.packagist composer https://packagist.phpcomposer.com
 
 ADD nginx.service /lib/systemd/system/nginx.service
 ADD php-fpm.service /lib/systemd/system/php-fpm.service

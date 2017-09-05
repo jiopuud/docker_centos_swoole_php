@@ -4,8 +4,8 @@ After=network.target
    
 [Service]  
 Type=forking  
-ExecStart=/usr/sbin/php-fpm
-ExecReload=killall php-fpm;/usr/sbin/php-fpm;
+ExecStart=/usr/local/sbin/php-fpm
+ExecReload=killall php-fpm;/usr/local/sbin/php-fpm;
 ExecStop=killall php-fpm
 PrivateTmp=true  
    
