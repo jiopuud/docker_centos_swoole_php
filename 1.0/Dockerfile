@@ -22,10 +22,6 @@ ADD nginx.conf /usr/local/nginx/conf/nginx.conf
 ADD cert /usr/local/nginx/cert
 RUN chmod -R 755 /usr/local/nginx/cert
 
-# 添加composer
-ADD composer /usr/sbin/composer
-RUN chmod 777 /usr/sbin/composer
-
 #编译安装php7
 RUN wget -O php7.tar.gz http://cn2.php.net/get/php-7.1.1.tar.gz/from/this/mirror \
 	&& mkdir php7 && tar zxvf php7.tar.gz  -C ./php7 --strip-components 1 \
@@ -77,18 +73,12 @@ RUN mkdir php-redis \
 	&& tar zxvf redis-3.1.3.tgz  -C ./php-redis --strip-components 1 \
 	&& cd php-redis \
 	&& phpize && ./configure --enable-redis-igbinary && make && make install \
-	&& echo extension=redis.so>>/usr/local/php/etc/php.ini \
-	&& /usr/sbin/composer config -g repo.packagist /usr/sbin/composer https://packagist.phpcomposer.com \
-	&& /usr/sbin/composer config -g disable-tls true \
-	&& /usr/sbin/composer config -g secure-http false 
-
+	&& echo extension=redis.so>>/usr/local/php/etc/php.ini
+	
 ADD nginx.service /lib/systemd/system/nginx.service
 ADD php-fpm.service /lib/systemd/system/php-fpm.service
 ADD supervisord.service /lib/systemd/system/supervisord.service
 RUN systemctl enable php-fpm.service && systemctl enable nginx.service && systemctl enable supervisord.service
-
-RUN mkdir -p /data/sd
-COPY composer.json /data/sd/composer.json
 
 # 安装openssh-server和sudo软件包，并且将sshd的UsePAM参数设置成no  
 RUN yum install -y openssh-server sudo  
@@ -97,12 +87,13 @@ RUN sed -i 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config
 # 添加测试用户admin，密码admin，并且将此用户添加到sudoers里  
 RUN useradd admin  
 RUN echo "admin:admin" | chpasswd  
-RUN echo "admin   ALL=(ALL)       ALL" >> /etc/sudoers  
+RUN echo "admin   ALL=(ALL)       NOPASSWD:ALL" >> /etc/sudoers  
    
 # 下面这两句比较特殊，在centos6上必须要有，否则创建出来的容器sshd不能登录  
 RUN ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key  
 RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key  
    
+RUN echo "root:1" | chpasswd  
 # 启动sshd服务并且暴露22端口  
 RUN mkdir /var/run/sshd  
 RUN cp -rf /home/temp/init.sh /usr/local/sbin/init.sh
