@@ -96,6 +96,5 @@ RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
 RUN echo "root:1" | chpasswd  
 # 启动sshd服务并且暴露22端口  
 RUN mkdir /var/run/sshd  
-RUN cp -rf /home/temp/init.sh /usr/local/sbin/init.sh
 EXPOSE 22 
 CMD ["/usr/sbin/init"] 
